@@ -7,8 +7,8 @@ export interface IDiary extends Document {
   category: string;
   tags: string[];
   date: Date;
-  isPublic: boolean;
-  user: mongoose.Types.ObjectId;
+  // 关联的照片
+  attachedPhotos: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,15 +45,11 @@ const DiarySchema: Schema = new Schema({
     type: Date,
     default: Date.now
   },
-  isPublic: {
-    type: Boolean,
-    default: false
-  },
-  user: {
+  // 关联的照片
+  attachedPhotos: [{
     type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  }
+    ref: 'Photo'
+  }]
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
@@ -61,9 +57,9 @@ const DiarySchema: Schema = new Schema({
 });
 
 // Index for better query performance
-DiarySchema.index({ user: 1, date: -1 });
-DiarySchema.index({ user: 1, category: 1 });
-DiarySchema.index({ user: 1, mood: 1 });
+DiarySchema.index({ date: -1 });
+DiarySchema.index({ category: 1 });
+DiarySchema.index({ mood: 1 });
 
 // Virtual for formatted date
 DiarySchema.virtual('formattedDate').get(function(this: IDiary) {

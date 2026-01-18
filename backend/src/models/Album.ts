@@ -4,7 +4,6 @@ export interface IAlbum extends Document {
   name: string;
   description?: string;
   coverPhoto?: string;
-  user: mongoose.Types.ObjectId;
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -26,11 +25,6 @@ const AlbumSchema: Schema = new Schema({
     type: String,
     default: ''
   },
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
   isDefault: {
     type: Boolean,
     default: false
@@ -42,17 +36,16 @@ const AlbumSchema: Schema = new Schema({
 });
 
 // Index for better query performance
-AlbumSchema.index({ user: 1 });
+AlbumSchema.index({ isDefault: 1 });
 
-// Ensure only one default album per user
-// AlbumSchema.pre('save', async function(next) {
-//   if (this.isDefault) {
-//     await mongoose.model('Album').updateMany(
-//       { user: this.user, _id: { $ne: this._id } },
-//       { $set: { isDefault: false } }
-//     );
-//   }
-//   next();
-// });
+// Ensure only one default album
+AlbumSchema.pre('save', async function() {
+  if (this.isDefault) {
+    await mongoose.model('Album').updateMany(
+      { _id: { $ne: this._id } },
+      { $set: { isDefault: false } }
+    );
+  }
+});
 
 export default mongoose.model<IAlbum>('Album', AlbumSchema);

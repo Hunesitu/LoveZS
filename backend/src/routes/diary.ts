@@ -6,14 +6,12 @@ import {
   updateDiary,
   deleteDiary,
   getCategories,
-  getTags
+  getTags,
+  attachPhotos,
+  removePhoto
 } from '../controllers/diaryController';
-import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
-
-// All diary routes require authentication
-router.use(authenticate);
 
 // Diary CRUD routes
 router.get('/', getDiaries);
@@ -21,6 +19,10 @@ router.get('/:id', getDiary);
 router.post('/', createDiary);
 router.put('/:id', updateDiary);
 router.delete('/:id', deleteDiary);
+
+// Photo association routes
+router.post('/:id/photos', attachPhotos);
+router.delete('/:id/photos/:photoId', removePhoto);
 
 // Utility routes
 router.get('/meta/categories', getCategories);

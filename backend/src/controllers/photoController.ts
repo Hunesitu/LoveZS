@@ -5,7 +5,6 @@ import multer from 'multer';
 import Album from '../models/Album';
 import Photo from '../models/Photo';
 import sharp from 'sharp';
-import { AuthRequest } from '../types/auth';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -36,11 +35,9 @@ export const upload = multer({
   }
 });
 
-export const getAlbums = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getAlbums = async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
-
-    const albums = await Album.find({ user: userId }).sort({ createdAt: -1 });
+    const albums = await Album.find().sort({ createdAt: -1 });
 
     res.json({
       success: true,
@@ -55,15 +52,13 @@ export const getAlbums = async (req: AuthRequest, res: Response): Promise<void> 
   }
 };
 
-export const createAlbum = async (req: AuthRequest, res: Response): Promise<void> => {
+export const createAlbum = async (req: any, res: Response): Promise<any> => {
   try {
-    const userId = req.user?.userId;
     const { name, description } = req.body;
 
     const album = new Album({
       name,
-      description,
-      user: userId
+      description
     });
 
     await album.save();
@@ -73,28 +68,37 @@ export const createAlbum = async (req: AuthRequest, res: Response): Promise<void
       message: '相册创建成功',
       data: { album }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create album error:', error);
+
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map((e: any) => e.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', ')
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: '创建相册失败'
+      message: error.message || '创建相册失败',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
 
-export const getPhotos = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getPhotos = async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
     const { albumId, page = 1, limit = 20 } = req.query;
 
-    const query: any = { user: userId };
+    const query: any = {};
     if (albumId) query.album = albumId;
 
     const options = {
       page: parseInt(page as string),
       limit: parseInt(limit as string),
-      sort: { createdAt: -1 as 1 },
-      populate: ['album']
+      sort: { createdAt: -1 as 1 }
     };
 
     const photos = await Photo.find(query)
@@ -127,9 +131,8 @@ export const getPhotos = async (req: AuthRequest, res: Response): Promise<void> 
   }
 };
 
-export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<void> => {
+export const uploadPhotos = async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
     const { albumId, description, tags } = req.body;
     const files = req.files as Express.Multer.File[];
 
@@ -141,8 +144,8 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    // Verify album exists and belongs to user
-    const album = await Album.findOne({ _id: albumId, user: userId });
+    // Verify album exists
+    const album = await Album.findById(albumId);
     if (!album) {
       res.status(404).json({
         success: false,
@@ -185,7 +188,6 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
         size: file.size,
         mimetype: file.mimetype,
         album: albumId,
-        user: userId,
         description,
         tags: parsedTags
       });
@@ -208,12 +210,11 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
   }
 };
 
-export const deletePhoto = async (req: AuthRequest, res: Response): Promise<void> => {
+export const deletePhoto = async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
     const { id } = req.params;
 
-    const photo = await Photo.findOne({ _id: id, user: userId });
+    const photo = await Photo.findById(id);
 
     if (!photo) {
       res.status(404).json({
@@ -243,12 +244,11 @@ export const deletePhoto = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-export const deleteAlbum = async (req: AuthRequest, res: Response): Promise<void> => {
+export const deleteAlbum = async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
     const { id } = req.params;
 
-    const album = await Album.findOne({ _id: id, user: userId });
+    const album = await Album.findById(id);
     if (!album) {
       res.status(404).json({
         success: false,
@@ -295,13 +295,12 @@ export const deleteAlbum = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-export const updateAlbum = async (req: AuthRequest, res: Response): Promise<void> => {
+export const updateAlbum = async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
     const { id } = req.params;
     const { name, description } = req.body;
 
-    const album = await Album.findOne({ _id: id, user: userId });
+    const album = await Album.findById(id);
     if (!album) {
       res.status(404).json({
         success: false,

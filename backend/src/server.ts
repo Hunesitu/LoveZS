@@ -10,7 +10,6 @@ import path from 'path';
 dotenv.config();
 
 import { connectDB } from './config/database';
-import authRoutes from './routes/auth';
 import diaryRoutes from './routes/diary';
 import photoRoutes from './routes/photo';
 import countdownRoutes from './routes/countdown';
@@ -22,8 +21,15 @@ const PORT = process.env.PORT || 5000;
 // Connect to MongoDB
 connectDB();
 
-// Security middleware
-app.use(helmet());
+// Security middleware with relaxed CSP for images
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'img-src': ["'self'", 'data:', 'blob:', 'http:', 'https:'],
+    },
+  },
+}));
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
@@ -47,7 +53,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
-app.use('/api/auth', authRoutes);
 app.use('/api/diaries', diaryRoutes);
 app.use('/api/photos', photoRoutes);
 app.use('/api/countdowns', countdownRoutes);

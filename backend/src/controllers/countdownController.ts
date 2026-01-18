@@ -1,99 +1,103 @@
 import { Response } from 'express';
 import Countdown from '../models/Countdown';
-import { AuthRequest } from '../types/auth';
 
-export const getCountdowns = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getCountdowns = async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
-    const { type, status } = req.query;
+    const { type, direction } = req.query;
 
-    const query: any = { user: userId };
+    const query: any = {};
 
     if (type) query.type = type;
+    if (direction) query.direction = direction;
 
     let countdowns = await Countdown.find(query).sort({ targetDate: 1 });
 
-    // Filter by status if provided
-    if (status) {
-      countdowns = countdowns.filter(countdown => (countdown as any).status === status);
-    }
+    // 确保虚拟字段被正确序列化
+    const serializedCountdowns = countdowns.map(c => c.toObject({ virtuals: true }));
 
     res.json({
       success: true,
-      data: { countdowns }
+      data: { countdowns: serializedCountdowns }
     });
   } catch (error) {
     console.error('Get countdowns error:', error);
     res.status(500).json({
       success: false,
-      message: '获取倒计时列表失败'
+      message: '获取纪念日列表失败'
     });
   }
 };
 
-export const getCountdown = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getCountdown = async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
     const { id } = req.params;
 
-    const countdown = await Countdown.findOne({ _id: id, user: userId });
+    const countdown = await Countdown.findById(id);
 
     if (!countdown) {
       res.status(404).json({
         success: false,
-        message: '倒计时不存在'
+        message: '纪念日不存在'
       });
       return;
     }
 
     res.json({
       success: true,
-      data: { countdown }
+      data: { countdown: countdown.toObject({ virtuals: true }) }
     });
   } catch (error) {
     console.error('Get countdown error:', error);
     res.status(500).json({
       success: false,
-      message: '获取倒计时失败'
+      message: '获取纪念日失败'
     });
   }
 };
 
-export const createCountdown = async (req: AuthRequest, res: Response): Promise<void> => {
+export const createCountdown = async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
-    const { title, description, targetDate, type, isRecurring, recurringType, isPublic } = req.body;
+    const { title, description, targetDate, type, direction, isRecurring, recurringType } = req.body;
 
     const countdown = new Countdown({
       title,
       description,
       targetDate: new Date(targetDate),
       type,
+      direction: direction || 'countup',
       isRecurring,
-      recurringType,
-      isPublic,
-      user: userId
+      recurringType
     });
 
     await countdown.save();
 
     res.status(201).json({
       success: true,
-      message: '倒计时创建成功',
-      data: { countdown }
+      message: '纪念日创建成功',
+      data: { countdown: countdown.toObject({ virtuals: true }) }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create countdown error:', error);
+
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map((e: any) => e.message);
+      return res.status(400).json({
+        success: false,
+        message: messages.join(', ')
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: '创建倒计时失败'
+      message: error.message || '创建纪念日失败',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
 
-export const updateCountdown = async (req: AuthRequest, res: Response): Promise<void> => {
+export const updateCountdown = async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
     const { id } = req.params;
     const updateData = req.body;
 
@@ -101,8 +105,8 @@ export const updateCountdown = async (req: AuthRequest, res: Response): Promise<
       updateData.targetDate = new Date(updateData.targetDate);
     }
 
-    const countdown = await Countdown.findOneAndUpdate(
-      { _id: id, user: userId },
+    const countdown = await Countdown.findByIdAndUpdate(
+      id,
       updateData,
       { new: true, runValidators: true }
     );
@@ -110,49 +114,48 @@ export const updateCountdown = async (req: AuthRequest, res: Response): Promise<
     if (!countdown) {
       res.status(404).json({
         success: false,
-        message: '倒计时不存在'
+        message: '纪念日不存在'
       });
       return;
     }
 
     res.json({
       success: true,
-      message: '倒计时更新成功',
-      data: { countdown }
+      message: '纪念日更新成功',
+      data: { countdown: countdown.toObject({ virtuals: true }) }
     });
   } catch (error) {
     console.error('Update countdown error:', error);
     res.status(500).json({
       success: false,
-      message: '更新倒计时失败'
+      message: '更新纪念日失败'
     });
   }
 };
 
-export const deleteCountdown = async (req: AuthRequest, res: Response): Promise<void> => {
+export const deleteCountdown = async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
     const { id } = req.params;
 
-    const countdown = await Countdown.findOneAndDelete({ _id: id, user: userId });
+    const countdown = await Countdown.findByIdAndDelete(id);
 
     if (!countdown) {
       res.status(404).json({
         success: false,
-        message: '倒计时不存在'
+        message: '纪念日不存在'
       });
       return;
     }
 
     res.json({
       success: true,
-      message: '倒计时删除成功'
+      message: '纪念日删除成功'
     });
   } catch (error) {
     console.error('Delete countdown error:', error);
     res.status(500).json({
       success: false,
-      message: '删除倒计时失败'
+      message: '删除纪念日失败'
     });
   }
 };

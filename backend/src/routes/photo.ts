@@ -9,12 +9,8 @@ import {
   updateAlbum,
   upload
 } from '../controllers/photoController';
-import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
-
-// All photo routes require authentication
-router.use(authenticate);
 
 // Album routes
 router.get('/albums', getAlbums);

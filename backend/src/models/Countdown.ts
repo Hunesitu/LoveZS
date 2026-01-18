@@ -1,14 +1,16 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+export type CountdownDirection = 'countup' | 'countdown';
+export type CountdownType = 'anniversary' | 'birthday' | 'event' | 'other';
+
 export interface ICountdown extends Document {
   title: string;
   description?: string;
   targetDate: Date;
-  type: 'anniversary' | 'birthday' | 'event' | 'other';
+  type: CountdownType;
+  direction: CountdownDirection;  // countup: 已过去天数, countdown: 倒计时
   isRecurring: boolean;
   recurringType?: 'yearly' | 'monthly' | 'daily';
-  isPublic: boolean;
-  user: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,18 +29,18 @@ const CountdownSchema: Schema = new Schema({
   },
   targetDate: {
     type: Date,
-    required: [true, '目标日期不能为空'],
-    validate: {
-      validator: function(value: Date) {
-        return value > new Date();
-      },
-      message: '目标日期必须是未来的日期'
-    }
+    required: [true, '目标日期不能为空']
+    // 移除必须是未来日期的验证，允许过去日期
   },
   type: {
     type: String,
     enum: ['anniversary', 'birthday', 'event', 'other'],
     default: 'other'
+  },
+  direction: {
+    type: String,
+    enum: ['countup', 'countdown'],
+    default: 'countup'
   },
   isRecurring: {
     type: Boolean,
@@ -50,15 +52,6 @@ const CountdownSchema: Schema = new Schema({
     required: function(this: ICountdown) {
       return this.isRecurring;
     }
-  },
-  isPublic: {
-    type: Boolean,
-    default: false
-  },
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
   }
 }, {
   timestamps: true,
@@ -67,23 +60,31 @@ const CountdownSchema: Schema = new Schema({
 });
 
 // Index for better query performance
-CountdownSchema.index({ user: 1, targetDate: 1 });
-CountdownSchema.index({ user: 1, type: 1 });
+CountdownSchema.index({ targetDate: 1 });
+CountdownSchema.index({ type: 1 });
+CountdownSchema.index({ direction: 1 });
 
-// Virtual for days remaining
-CountdownSchema.virtual('daysRemaining').get(function(this: ICountdown) {
+// Virtual for days calculation (positive for countdown, negative for countup)
+CountdownSchema.virtual('days').get(function(this: ICountdown) {
   const now = new Date();
-  const diffTime = this.targetDate.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return Math.max(0, diffDays);
+  now.setHours(0, 0, 0, 0);
+  const target = new Date(this.targetDate);
+  target.setHours(0, 0, 0, 0);
+
+  const diffTime = target.getTime() - now.getTime();
+  let days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  // 对于 countup (已过去的纪念日)，天数加1（纪念日当天算第1天）
+  if (this.direction === 'countup') {
+    days -= 1;
+  }
+
+  return days;
 });
 
-// Virtual for hours remaining
-CountdownSchema.virtual('hoursRemaining').get(function(this: ICountdown) {
-  const now = new Date();
-  const diffTime = this.targetDate.getTime() - now.getTime();
-  const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
-  return Math.max(0, diffHours);
+// Virtual for absolute days (always positive)
+CountdownSchema.virtual('absoluteDays').get(function(this: ICountdown) {
+  return Math.abs((this as any).days);
 });
 
 // Virtual for formatted target date
@@ -93,11 +94,20 @@ CountdownSchema.virtual('formattedTargetDate').get(function(this: ICountdown) {
 
 // Virtual for status
 CountdownSchema.virtual('status').get(function(this: ICountdown) {
-  const now = new Date();
-  if (this.targetDate <= now) return 'passed';
-  if ((this as any).daysRemaining <= 7) return 'urgent';
-  if ((this as any).daysRemaining <= 30) return 'soon';
-  return 'upcoming';
+  const days = (this as any).days;
+
+  if (this.direction === 'countup') {
+    // countup: 已过去的纪念日
+    if (days <= -365) return 'long-time';
+    if (days <= -30) return 'month';
+    return 'recent';
+  } else {
+    // countdown: 倒计时
+    if (days <= 0) return 'today';
+    if (days <= 7) return 'urgent';
+    if (days <= 30) return 'soon';
+    return 'upcoming';
+  }
 });
 
 export default mongoose.model<ICountdown>('Countdown', CountdownSchema);

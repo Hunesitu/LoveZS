@@ -6,12 +6,8 @@ import {
   updateCountdown,
   deleteCountdown
 } from '../controllers/countdownController';
-import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
-
-// All countdown routes require authentication
-router.use(authenticate);
 
 // Countdown CRUD routes
 router.get('/', getCountdowns);

@@ -8,7 +8,6 @@ export interface IPhoto extends Document {
   size: number;
   mimetype: string;
   album: mongoose.Types.ObjectId;
-  user: mongoose.Types.ObjectId;
   description?: string;
   tags: string[];
   location?: {
@@ -25,6 +24,7 @@ export interface IPhoto extends Document {
     focalLength?: string;
     dateTime?: Date;
   };
+  compressedUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -57,11 +57,6 @@ const PhotoSchema: Schema = new Schema({
   album: {
     type: Schema.Types.ObjectId,
     ref: 'Album',
-    required: true
-  },
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
     required: true
   },
   description: {
@@ -108,8 +103,8 @@ const PhotoSchema: Schema = new Schema({
 });
 
 // Index for better query performance
-PhotoSchema.index({ user: 1, album: 1, createdAt: -1 });
-PhotoSchema.index({ user: 1, tags: 1 });
+PhotoSchema.index({ album: 1, createdAt: -1 });
+PhotoSchema.index({ tags: 1 });
 
 // Virtual for file size in human readable format
 PhotoSchema.virtual('sizeFormatted').get(function(this: IPhoto) {
