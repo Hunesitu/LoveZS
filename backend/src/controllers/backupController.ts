@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import archiver from 'archiver';
 import path from 'path';
 import fs from 'fs';
@@ -6,11 +6,10 @@ import Diary from '../models/Diary';
 import Photo from '../models/Photo';
 import Album from '../models/Album';
 import Countdown from '../models/Countdown';
-import { AuthRequest } from 'express';
 
-export const exportBackup = async (req: AuthRequest, res: Response): Promise<void> => {
+export const exportBackup = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Fetch all data (共享模式，不需要 userId)
+    // Fetch all data (共享模式)
     const [diaries, albums, photos, countdowns] = await Promise.all([
       Diary.find().lean(),
       Album.find().lean(),
@@ -20,7 +19,7 @@ export const exportBackup = async (req: AuthRequest, res: Response): Promise<voi
 
     // Prepare zip
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename=backup-${userId}-${Date.now()}.zip`);
+    res.setHeader('Content-Disposition', `attachment; filename=lovezs-backup-${Date.now()}.zip`);
 
     const archive = archiver('zip', { zlib: { level: 9 } });
     archive.on('error', (err: any) => {
@@ -62,4 +61,3 @@ export const exportBackup = async (req: AuthRequest, res: Response): Promise<voi
     });
   }
 };
-
