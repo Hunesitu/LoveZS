@@ -82,10 +82,11 @@ export const createCountdown = async (req: any, res: Response): Promise<void> =>
     // Handle Mongoose validation errors
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map((e: any) => e.message);
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: messages.join(', ')
       });
+      return;
     }
 
     res.status(500).json({

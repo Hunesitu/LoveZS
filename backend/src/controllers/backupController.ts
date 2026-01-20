@@ -6,18 +6,16 @@ import Diary from '../models/Diary';
 import Photo from '../models/Photo';
 import Album from '../models/Album';
 import Countdown from '../models/Countdown';
-import { AuthRequest } from '../types/auth';
+import { AuthRequest } from 'express';
 
 export const exportBackup = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
-
-    // Fetch user's data
+    // Fetch all data (共享模式，不需要 userId)
     const [diaries, albums, photos, countdowns] = await Promise.all([
-      Diary.find({ user: userId }).lean(),
-      Album.find({ user: userId }).lean(),
-      Photo.find({ user: userId }).lean(),
-      Countdown.find({ user: userId }).lean()
+      Diary.find().lean(),
+      Album.find().lean(),
+      Photo.find().lean(),
+      Countdown.find().lean()
     ]);
 
     // Prepare zip
