@@ -1,6 +1,10 @@
 # Build stage
 FROM node:18-alpine AS builder
 
+# 接收构建参数
+ARG REACT_APP_API_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+
 WORKDIR /app
 
 # Copy package files
@@ -12,7 +16,7 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build React app
+# Build React app (环境变量在构建时注入)
 RUN npm run build
 
 # Production stage - serve with nginx
