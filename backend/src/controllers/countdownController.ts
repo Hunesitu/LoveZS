@@ -59,12 +59,19 @@ export const createCountdown = async (req: any, res: Response): Promise<void> =>
   try {
     const { title, description, targetDate, type, direction, isRecurring, recurringType } = req.body;
 
+    // 如果没有指定方向，自动根据日期判断
+    let autoDirection = direction;
+    if (!autoDirection) {
+      const date = new Date(targetDate);
+      autoDirection = date < new Date() ? 'countup' : 'countdown';
+    }
+
     const countdown = new Countdown({
       title,
       description,
       targetDate: new Date(targetDate),
       type,
-      direction: direction || 'countup',
+      direction: autoDirection,
       isRecurring,
       recurringType
     });

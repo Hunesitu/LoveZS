@@ -16,7 +16,7 @@ const Layout: React.FC = () => {
     { name: '首页', href: '/dashboard', icon: Home },
     { name: '日记', href: '/diaries', icon: BookOpen },
     { name: '相册', href: '/photos', icon: ImageIcon },
-    { name: '纪念日', href: '/countdowns', icon: Calendar },
+    { name: '重要日', href: '/countdowns', icon: Calendar },
     { name: '设置', href: '/profile', icon: Settings },
   ];
 

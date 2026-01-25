@@ -1,15 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { countdownService, Countdown, CountdownDirection, CountdownType } from '../services/countdown';
+import { countdownService, Countdown } from '../services/countdown';
 import { Plus, Trash2, Calendar as CalendarIcon, Heart, Clock } from 'lucide-react';
 import dayjs from 'dayjs';
 
 const Countdowns: React.FC = () => {
-  const [anniversaries, setAnniversaries] = useState<Countdown[]>([]);
-  const [upcoming, setUpcoming] = useState<Countdown[]>([]);
+  const [countdowns, setCountdowns] = useState<Countdown[]>([]);
   const [title, setTitle] = useState('');
   const [targetDate, setTargetDate] = useState('');
-  const [direction, setDirection] = useState<CountdownDirection>('countup');
-  const [type, setType] = useState<CountdownType>('anniversary');
   const [isLoading, setIsLoading] = useState(false);
 
   // 里程碑天数
@@ -26,15 +23,10 @@ const Countdowns: React.FC = () => {
 
   const loadData = async () => {
     try {
-      // 获取纪念日（已过去的，countup）
-      const annivRes = await countdownService.getCountdowns({ direction: 'countup' });
-      setAnniversaries(annivRes.data.countdowns || []);
-
-      // 获取倒计时（未来的，countdown）
-      const upcomRes = await countdownService.getCountdowns({ direction: 'countdown' });
-      setUpcoming(upcomRes.data.countdowns || []);
+      const res = await countdownService.getCountdowns();
+      setCountdowns(res.data.countdowns || []);
     } catch (err) {
-      console.error('加载纪念日失败', err);
+      console.error('加载重要日失败', err);
     }
   };
 
@@ -44,20 +36,22 @@ const Countdowns: React.FC = () => {
 
     setIsLoading(true);
     try {
+      // 自动判断方向：过去的日期用countup，未来的日期用countdown
+      const date = dayjs(targetDate);
+      const direction = date.isBefore(dayjs(), 'day') ? 'countup' : 'countdown';
+
       await countdownService.createCountdown({
         title,
         targetDate,
-        type,
+        type: 'anniversary',
         direction,
         isRecurring: false,
       });
       setTitle('');
       setTargetDate('');
-      setDirection('countup');
-      setType('anniversary');
       loadData();
     } catch (err: any) {
-      console.error('创建纪念日失败', err);
+      console.error('创建重要日失败', err);
       const errorMsg = err.response?.data?.message || err.message || '创建失败';
       alert(`创建失败: ${errorMsg}`);
     } finally {
@@ -76,22 +70,26 @@ const Countdowns: React.FC = () => {
     }
   };
 
+  // 分离已过去和即将到来的
+  const past = countdowns.filter(c => c.direction === 'countup' || c.days! < 0);
+  const upcoming = countdowns.filter(c => c.direction === 'countdown' && c.days! >= 0);
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center">
           <CalendarIcon className="h-6 w-6 mr-2 text-pink-500" />
-          纪念日
+          重要日
         </h1>
         <p className="text-gray-600 mt-1">
-          记录那些重要的日子 - 已经过的和即将到来的
+          记录那些重要的日子
         </p>
       </div>
 
       {/* 创建表单 */}
       <div className="card mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">添加新纪念日</h2>
-        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">添加新重要日</h2>
+        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">标题</label>
             <input
@@ -112,17 +110,6 @@ const Countdowns: React.FC = () => {
               required
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">类型</label>
-            <select
-              className="input-field"
-              value={direction}
-              onChange={(e) => setDirection(e.target.value as CountdownDirection)}
-            >
-              <option value="countup">📅 已过去（纪念日）</option>
-              <option value="countdown">⏰ 倒计时（即将到来）</option>
-            </select>
-          </div>
           <div className="flex items-end">
             <button className="btn-primary w-full" type="submit" disabled={isLoading}>
               {isLoading ? '创建中...' : (
@@ -137,21 +124,20 @@ const Countdowns: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 纪念日 - 已过去的 */}
+        {/* 已过去的日子 */}
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <Heart className="h-5 w-5 mr-2 text-pink-500" />
-            纪念日
-            <span className="ml-2 text-sm font-normal text-gray-500">（已过去）</span>
+            已经过去
           </h2>
 
           {/* 里程碑倒计时卡片 */}
-          {anniversaries.length > 0 && (() => {
-            // 找到最早的纪念日（恋爱天数最多的）
-            const longestAnniversary = anniversaries.reduce((prev, curr) =>
+          {past.length > 0 && (() => {
+            // 找到最早的日子（天数最多的）
+            const longest = past.reduce((prev, curr) =>
               curr.absoluteDays! > prev.absoluteDays! ? curr : prev
             );
-            const currentDays = longestAnniversary.absoluteDays!;
+            const currentDays = longest.absoluteDays!;
             const nextMilestone = getNextMilestone(currentDays);
             const daysToMilestone = nextMilestone - currentDays;
 
@@ -164,7 +150,7 @@ const Countdowns: React.FC = () => {
                       下一个里程碑
                     </h3>
                     <p className="text-sm text-gray-500 mt-1">
-                      已在一起 <span className="font-bold text-pink-600">{currentDays}</span> 天
+                      {longest.title} 已有 <span className="font-bold text-pink-600">{currentDays}</span> 天
                     </p>
                     <div className="mt-3 flex items-center">
                       <span className="text-2xl mr-2">🎯</span>
@@ -190,9 +176,9 @@ const Countdowns: React.FC = () => {
             );
           })()}
 
-          {anniversaries.length > 0 ? (
+          {past.length > 0 ? (
             <div className="space-y-3">
-              {anniversaries.map((c) => (
+              {past.map((c) => (
                 <div key={c._id} className="card">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -203,7 +189,7 @@ const Countdowns: React.FC = () => {
                       <div className="mt-2 flex items-center">
                         <span className="text-2xl mr-2">💕</span>
                         <span className="text-lg font-bold text-pink-600">
-                          已在一起 {c.absoluteDays} 天
+                          已 {c.absoluteDays} 天
                         </span>
                       </div>
                     </div>
@@ -221,17 +207,16 @@ const Countdowns: React.FC = () => {
           ) : (
             <div className="card text-center py-8">
               <Heart className="mx-auto h-10 w-10 text-gray-400 mb-2" />
-              <p className="text-sm text-gray-500">还没有添加纪念日</p>
+              <p className="text-sm text-gray-500">还没有添加已过去的日子</p>
             </div>
           )}
         </div>
 
-        {/* 倒计时 - 即将到来的 */}
+        {/* 即将到来的日子 */}
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <Clock className="h-5 w-5 mr-2 text-amber-500" />
-            倒计时
-            <span className="ml-2 text-sm font-normal text-gray-500">（即将到来）</span>
+            即将到来
           </h2>
           <div className="space-y-3">
             {upcoming.length > 0 ? (
@@ -263,7 +248,7 @@ const Countdowns: React.FC = () => {
             ) : (
               <div className="card text-center py-8">
                 <Clock className="mx-auto h-10 w-10 text-gray-400 mb-2" />
-                <p className="text-sm text-gray-500">还没有添加倒计时</p>
+                <p className="text-sm text-gray-500">还没有添加即将到来的日子</p>
               </div>
             )}
           </div>

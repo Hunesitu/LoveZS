@@ -181,7 +181,7 @@ const Dashboard: React.FC = () => {
               <Calendar className="h-5 w-5 text-amber-600" />
             </div>
             <div className="ml-3">
-              <p className="font-medium text-gray-900">纪念日</p>
+              <p className="font-medium text-gray-900">重要日</p>
               <p className="text-sm text-gray-600">重要日子</p>
             </div>
           </Link>
