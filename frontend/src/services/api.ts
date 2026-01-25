@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// 生产环境使用相对路径，开发环境使用环境变量
+const API_BASE_URL = process.env.NODE_ENV === 'production'
+  ? '/api'  // 相对路径，由nginx代理到后端
+  : (process.env.REACT_APP_API_URL || 'http://localhost:5000/api');
 
 // Create axios instance
 const api = axios.create({
